@@ -1,0 +1,197 @@
+---
+- name: install epel
+  package:
+    name: epel-release
+
+- name: install required packages
+  package:
+    name:
+      - ansible
+      - git
+      - python3-pip
+      - podman
+    state: latest
+
+- name: install some pip
+  pip:
+    name:
+      - openstacksdk
+      - python-openstackclient
+      - bindep
+
+- name: tune the container images registries
+  ini_file:
+    section: registries.search
+    option: registries
+    value: ['docker.io']
+    path: /etc/containers/registries.conf
+
+- name: install reproducer role
+  git:
+    repo: 'https://github.com/rdo-infra/ansible-role-tripleo-ci-reproducer.git'
+    dest: /home/centos/ansible-role-tripleo-ci-reproducer
+    update: "{{ update_repo|default('no') }}"
+
+- name: create the cloud configuration directory.
+  file:
+    group: centos
+    owner: centos
+    state: directory
+    mode: 0700
+    path: /home/centos/.config/openstack/
+
+- name: create the cloud configuration.
+  copy:
+    content: "{{ cloud_conf|to_nice_yaml }}"
+    dest: /home/centos/.config/openstack/clouds.yaml
+    group: centos
+    owner: centos
+  vars:
+    cloud_conf:
+      clouds:
+        openstack:
+          auth:
+            auth_url: 'https://rhos-d.infra.prod.upshift.rdu2.redhat.com:13000/v3'
+            username: "sathlang"
+            user_domain_name: "redhat.com"
+            application_credential_name: 'reproducer'
+            application_credential_secret: "{{ secret }}"
+          auth_type: 'v3applicationcredential'
+          region_name: "regionOne"
+          interface: "public"
+          identity_api_version: 3
+
+- name: copy user private key associated with zuul (gerrit)
+  copy:
+    src: "{{ user_private_key_path }}"
+    dest: /home/centos/.ssh/reproducer
+    owner: centos
+    group: centos
+    mode: 0600
+
+- name: copy user public key associated with zuul (gerrit)
+  copy:
+    src: "{{ user_public_key_path }}"
+    dest: /home/centos/.ssh/reproducer.pub
+    owner: centos
+    group: centos
+    mode: 0600
+
+- name: install the bootstrap script
+  copy:
+    content: "{{ bootstrap_playbook|to_nice_yaml }}"
+    dest: /home/centos/boostrap_reproducer.yaml
+    group: centos
+    owner: centos
+    mode: 0600
+  vars:
+    bootstrap_playbook:
+      - name: Set up reproducer
+        hosts: localhost
+        tasks:
+          - name: setup the environment with all the tools.
+            include_role:
+              name: "/home/centos/ansible-role-tripleo-ci-reproducer"
+            vars:
+              upstream_gerrit_user: "{{ upstream_gerrit_user }}"
+              rdo_gerrit_user: "{{ rdo_gerrit_user }}"
+              os_cloud_name: "{{ cloud }}"
+              nodepool_provider: openstack
+              os_centos7_image: "upstream-cloudinit-centos-7"
+              os_centos8_image: "upstream-cloudinit-centos-8"
+              os_rhel8_image: "RedHat-8-x86_64-GenericCloud-released-latest"
+              user_pri_key: reproducer
+              user_pub_key: reproducer.pub
+              os_cloud_networks:
+                openstack:
+                  - reproducer-net
+              container_mode: podman
+              os_autohold_node: true
+              mirror_path: mirror.regionone.rdo-cloud.rdoproject.org
+
+              zuul_yaml: >-
+                - project:
+                    check:
+                      jobs:
+                        - tripleo-ci-centos-8-standalone-upgrade-dlrn-hash-tag
+
+                - job:
+                    name: tripleo-ci-centos-8-standalone-upgrade-dlrn-hash-tag
+                    parent: tripleo-ci-centos-8-standalone-upgrade
+                    vars:
+                      mirror_fqdn: {{ mirror_path }}
+                      ready_releases_file: |
+                        #!/bin/env bash
+                        export UNDERCLOUD_INSTALL_RELEASE="master"
+                        export UNDERCLOUD_INSTALL_HASH="03b79f35627e2be0d9662726c925e6e9"
+                        export UNDERCLOUD_TARGET_RELEASE="master"
+                        export UNDERCLOUD_TARGET_HASH="03b79f35627e2be0d9662726c925e6e9"
+                        export OVERCLOUD_DEPLOY_RELEASE="master"
+                        export OVERCLOUD_DEPLOY_HASH="03b79f35627e2be0d9662726c925e6e9"
+                        export OVERCLOUD_TARGET_RELEASE="master"
+                        export OVERCLOUD_TARGET_HASH="03b79f35627e2be0d9662726c925e6e9"
+                        export STANDALONE_DEPLOY_RELEASE="ussuri"
+                        export STANDALONE_DEPLOY_HASH="8dda823b8608fab9dd95c619504f930e"
+                        export STANDALONE_DEPLOY_NEWEST_HASH="f69fac35da53626384bc55717e27e2ae"
+                        export STANDALONE_TARGET_RELEASE="master"
+                        export STANDALONE_TARGET_NEWEST_HASH="e569d9e6fba90de03f5d42914ed2c6af"
+                        export STANDALONE_TARGET_HASH="03b79f35627e2be0d9662726c925e6e9"
+                      registry_login_enabled: false
+                      featureset_override:
+
+#- hosts: localhost
+#  vars:
+#    clouds_yaml_path: "/home/{{ ansible_user }}/.config/openstack/clouds.yaml"
+#    ovb_key_name: tripleo-ci-team
+#    mirror_path: mirror.regionone.rdo-cloud.rdoproject.org
+#    launch_job_branch: master
+#    depends_on:
+#      - https://review.opendev.org/755336
+#    nodepool_provider: openstack
+#    os_centos7_image: CentOS-7-x86_64-GenericCloud-released-latest
+#    os_centos8_image: CentOS-8-x86_64-GenericCloud-released-latest
+#    os_cloud_name: openstack
+#    os_rhel8_image: RedHat-8-x86_64-GenericCloud-released-latest
+#    rdo_gerrit_user: sathlan
+#    upstream_gerrit_user: chem
+#    user_pri_key: reproducer
+#    user_pub_key: reproducer.pub
+#    os_cloud_networks:
+#      openstack:
+#        - reproducer-net
+#    container_mode: podman
+#    os_autohold_node: true
+#
+#    zuul_yaml: >-
+#      - project:
+#          check:
+#            jobs:
+#              - tripleo-ci-centos-8-standalone-upgrade-dlrn-hash-tag
+#
+#      - job:
+#          name: tripleo-ci-centos-8-standalone-upgrade-dlrn-hash-tag
+#          parent: tripleo-ci-centos-8-standalone-upgrade
+#          vars:
+#            mirror_fqdn: {{ mirror_path }}
+#            ready_releases_file: |
+#              #!/bin/env bash
+#              export UNDERCLOUD_INSTALL_RELEASE="master"
+#              export UNDERCLOUD_INSTALL_HASH="03b79f35627e2be0d9662726c925e6e9"
+#              export UNDERCLOUD_TARGET_RELEASE="master"
+#              export UNDERCLOUD_TARGET_HASH="03b79f35627e2be0d9662726c925e6e9"
+#              export OVERCLOUD_DEPLOY_RELEASE="master"
+#              export OVERCLOUD_DEPLOY_HASH="03b79f35627e2be0d9662726c925e6e9"
+#              export OVERCLOUD_TARGET_RELEASE="master"
+#              export OVERCLOUD_TARGET_HASH="03b79f35627e2be0d9662726c925e6e9"
+#              export STANDALONE_DEPLOY_RELEASE="ussuri"
+#              export STANDALONE_DEPLOY_HASH="8dda823b8608fab9dd95c619504f930e"
+#              export STANDALONE_DEPLOY_NEWEST_HASH="f69fac35da53626384bc55717e27e2ae"
+#              export STANDALONE_TARGET_RELEASE="master"
+#              export STANDALONE_TARGET_NEWEST_HASH="e569d9e6fba90de03f5d42914ed2c6af"
+#              export STANDALONE_TARGET_HASH="03b79f35627e2be0d9662726c925e6e9"
+#            registry_login_enabled: false
+#            featureset_override:
+#  tasks:
+#    - import_role:
+#        name: ansible-role-tripleo-ci-reproducer
+#

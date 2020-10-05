@@ -1,0 +1,87 @@
+---
+# Deploy an instance on psi that runs a reproducer stack.
+#
+# More there https://github.com/rdo-infra/ansible-role-tripleo-ci-reproducer/blob/master/README.md#requirements
+- name: launch a reproducer runner instance
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cloud: "{{ cloudname|default('openstack') }}"
+    secret: U7f8InKPOnztRSuIB8FH
+    project_id: "3266192cfb2846e9bcb16ceab82bbe85"
+  tasks:
+    - import_tasks: create-network.yaml
+      tags:
+        - network
+
+    - name: create the key
+      os_keypair:
+        state: present
+        cloud: "{{ cloud }}"
+        name: chem-reproducer
+        public_key_file: ./reproducer.pub
+
+    - name: launch an instance
+      os_server:
+        state: present
+        cloud: "{{ cloud }}"
+        name: "{{ reproducer_instance_name|default('chem-reproducer') }}"
+        image: "CentOS-8-x86_64-GenericCloud-released-latest"
+        availability_zone: nova
+        flavor: "m1.large"
+        network: "reproducer-net"
+        floating_ip_pools: provider_net_shared_3
+        delete_fip: yes
+        key_name: chem-reproducer
+        security_groups:
+          - reproducer-security-group
+      register: instance
+      tags:
+        - always
+
+    - name: print instance details to console
+      debug:
+        msg: "Instance created, log in using 'ssh -i ./reproducer -oUserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no centos@{{ instance.server.public_v4 }}'"
+      tags:
+        - always
+
+    - name: add instance public ip to host group in memory
+      add_host:
+        hostname: "{{ instance.server.public_v4 }}"
+        ansible_ssh_private_key_file: ./reproducer
+        ansible_ssh_common_args: '-oUserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
+        ansible_ssh_user: centos
+        groups: cloud_vm
+      tags:
+        - always
+
+    - name: create application credential
+      os_application_credentials:
+        cloud: "{{ cloud }}"
+        name: reproducer
+        secret: "{{ secret }}"
+        project_id: "{{ project_id }}"
+
+- name: Setup the new host
+  hosts: cloud_vm
+  gather_facts: false
+  tags:
+    - provision
+  vars:
+    secret: U7f8InKPOnztRSuIB8FH
+    upstream_gerrit_user: "{{ gerrit_user }}"
+    rdo_gerrit_user: "{{ rdo_user }}"
+    cloud: "{{ cloudname|default('openstack') }}"
+  tasks:
+    - name: wait for instance to become reachable
+      wait_for_connection:
+        timeout: 900
+
+    - name: Gather facts for cloud_vm
+      setup:
+
+    - import_tasks: install-reproducer.yaml
+      become: true
+
+#    - name: Run bootstrap
+#      command: ansible-playbook -v --skip-tags start,install boostrap_reproducer.yaml

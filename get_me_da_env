@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+while getopts :u:r:p:c: OPT; do
+    case $OPT in
+        u|+u)
+            UPSTREAM_GERRIT_NAME="$OPTARG"
+            ;;
+        r|+r)
+            RDO_GERRIT_NAME="$OPTARG"
+            ;;
+        p|+p)
+            APPLICATION_PASSWORD="$OPTARG"
+            ;;
+        c|+c)
+            CLOUD="$OPTARG"
+            ;;
+        *)
+            echo "usage: ${0##*/} [+-u ARG] [+-r ARG] [+-p ARG] [+-c ARG} [--] ARGS..."
+            exit 2
+    esac
+done
+shift $(( OPTIND - 1 ))
+OPTIND=1
+
+ansible-playbook \
+    -v \
+    --skip-tags network \
+    -e '{"rdo_user": "sathlan", "gerrit_user": "chem", "user_public_key_path": "/home/chem/.ssh/xpsl2.pub", "user_private_key_path": "/home/chem/.ssh/xpsl2d"}' \
+    ./main.yaml
