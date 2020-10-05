@@ -83,5 +83,24 @@
     - import_tasks: install-reproducer.yaml
       become: true
 
-#    - name: Run bootstrap
-#      command: ansible-playbook -v --skip-tags start,install boostrap_reproducer.yaml
+    - name: Run bootstrap
+      shell:
+        cmd: "ansible-playbook -v boostrap_reproducer.yaml > /home/centos/bootstrap_reproducer.log"
+        creates: /home/centos/bootstrap_reproducer.log
+
+    - name: print services details to console
+      debug:
+        msg: "Services created, ZUUL: http://{{ instance.server.public_v4 }}:9000 GERRIT: https://{{ instance.server.public_v4 }}:8080"
+      tags:
+        - always
+
+    - name: Example job script
+      copy:
+        content: |
+          #!/bin/bash
+
+          ansible-playbook -v --skip-tags start,install /home/centos/job_example.yaml
+        dest: /home/centos/job_example.sh
+        owner: centos
+        group: centos
+        mode: 0700

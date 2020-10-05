@@ -26,6 +26,20 @@
     value: ['docker.io']
     path: /etc/containers/registries.conf
 
+- name: tune cni podman bridge configuration for small mtu
+  block:
+    - name: create directories
+      file:
+        state: directory
+        path: /etc/cni/net.d/
+        owner: root
+        group: root
+        mode: 0755
+    - name: create configuration
+      copy:
+        src: etc_cni_net.d_87-podman-bridge.conflist
+        dest: /etc/cni/net.d/87-podman-bridge.conflist
+
 - name: install reproducer role
   git:
     repo: 'https://github.com/rdo-infra/ansible-role-tripleo-ci-reproducer.git'
@@ -77,13 +91,23 @@
     group: centos
     mode: 0600
 
-- name: install the bootstrap script
-  copy:
-    content: "{{ bootstrap_playbook|to_nice_yaml }}"
-    dest: /home/centos/boostrap_reproducer.yaml
-    group: centos
-    owner: centos
-    mode: 0600
+- block:
+    - name: install the bootstrap script yaml
+      copy:
+        content: "{{ bootstrap_playbook|to_nice_yaml }}"
+        dest: /home/centos/boostrap_reproducer.yaml
+        group: centos
+        owner: centos
+        mode: 0600
+
+    - name: install a example job for upgrade
+      copy:
+        content: "{{ job_example|to_nice_yaml }}"
+        dest: /home/centos/job_example.yaml
+        group: centos
+        owner: centos
+        mode: 0600
+
   vars:
     bootstrap_playbook:
       - name: Set up reproducer
@@ -99,7 +123,29 @@
               nodepool_provider: openstack
               os_centos7_image: "upstream-cloudinit-centos-7"
               os_centos8_image: "upstream-cloudinit-centos-8"
-              os_rhel8_image: "RedHat-8-x86_64-GenericCloud-released-latest"
+              os_rhel8_image: "upstream-cloudinit-rhel-8"
+              user_pri_key: reproducer
+              user_pub_key: reproducer.pub
+              os_cloud_networks:
+                openstack:
+                  - reproducer-net
+              container_mode: podman
+              os_autohold_node: true
+    job_example:
+      - name: Set up reproducer
+        hosts: localhost
+        tasks:
+          - name: setup the environment with all the tools.
+            include_role:
+              name: "/home/centos/ansible-role-tripleo-ci-reproducer"
+            vars:
+              upstream_gerrit_user: "{{ upstream_gerrit_user }}"
+              rdo_gerrit_user: "{{ rdo_gerrit_user }}"
+              os_cloud_name: "{{ cloud }}"
+              nodepool_provider: openstack
+              os_centos7_image: "upstream-cloudinit-centos-7"
+              os_centos8_image: "upstream-cloudinit-centos-8"
+              os_rhel8_image: "upstream-cloudinit-rhel-8"
               user_pri_key: reproducer
               user_pub_key: reproducer.pub
               os_cloud_networks:
@@ -108,7 +154,8 @@
               container_mode: podman
               os_autohold_node: true
               mirror_path: mirror.regionone.rdo-cloud.rdoproject.org
-
+              depends_on:
+                - https://review.opendev.org/755336
               zuul_yaml: >-
                 - project:
                     check:
@@ -119,7 +166,7 @@
                     name: tripleo-ci-centos-8-standalone-upgrade-dlrn-hash-tag
                     parent: tripleo-ci-centos-8-standalone-upgrade
                     vars:
-                      mirror_fqdn: {{ mirror_path }}
+                      mirror_fqdn: {% raw %}{{ mirror_path }}{% endraw %}
                       ready_releases_file: |
                         #!/bin/env bash
                         export UNDERCLOUD_INSTALL_RELEASE="master"
