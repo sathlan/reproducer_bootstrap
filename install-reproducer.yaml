@@ -153,10 +153,11 @@
                   - reproducer-net
               container_mode: podman
               os_autohold_node: true
+              force_post_failure: true
               mirror_path: mirror.regionone.rdo-cloud.rdoproject.org
               depends_on:
                 - https://review.opendev.org/755336
-              zuul_yaml: >-
+              zuul_yaml:
                 - project:
                     check:
                       jobs:
@@ -166,7 +167,7 @@
                     name: tripleo-ci-centos-8-standalone-upgrade-dlrn-hash-tag
                     parent: tripleo-ci-centos-8-standalone-upgrade
                     vars:
-                      mirror_fqdn: {% raw %}{{ mirror_path }}{% endraw %}
+                      mirror_fqdn: "{% raw %}{{ mirror_path }}{% endraw %}"
                       ready_releases_file: |
                         #!/bin/env bash
                         export UNDERCLOUD_INSTALL_RELEASE="master"

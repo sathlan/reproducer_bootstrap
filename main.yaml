@@ -45,6 +45,13 @@
       tags:
         - always
 
+    - name: Save instance variable definition
+      copy:
+        content: "{{ instance | to_nice_json }}"
+        dest: /tmp/reproducer-instance.json
+      environment:
+        PYTHONPATH: "/usr/lib64/python3.8/site-packages/"
+
     - name: add instance public ip to host group in memory
       add_host:
         hostname: "{{ instance.server.public_v4 }}"
@@ -88,12 +95,6 @@
         cmd: "ansible-playbook -v boostrap_reproducer.yaml > /home/centos/bootstrap_reproducer.log"
         creates: /home/centos/bootstrap_reproducer.log
 
-    - name: print services details to console
-      debug:
-        msg: "Services created, ZUUL: http://{{ instance.server.public_v4 }}:9000 GERRIT: https://{{ instance.server.public_v4 }}:8080"
-      tags:
-        - always
-
     - name: Example job script
       copy:
         content: |
@@ -104,3 +105,17 @@
         owner: centos
         group: centos
         mode: 0700
+
+- name: Give user details about what is available.
+  hosts: localhost
+  gather_facts: false
+  tasks:
+
+    - name: load instance variable
+      include_vars: /tmp/reproducer-instance.json
+
+    - name: print services details to console
+      debug:
+        msg: "Services created, ZUUL: http://{{ server.public_v4 }}:9000 GERRIT: http://{{ server.public_v4 }}:8080"
+      tags:
+        - always
