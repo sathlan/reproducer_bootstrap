@@ -28,7 +28,8 @@
         name: "{{ reproducer_instance_name|default('chem-reproducer') }}"
         image: "CentOS-8-x86_64-GenericCloud-released-latest"
         availability_zone: nova
-        flavor: "m1.large"
+        # if ephemeral needs >=8gb
+        flavor: "quicklab.ocp.master.4vcpu.disk"
         network: "reproducer-net"
         floating_ip_pools: provider_net_shared_3
         delete_fip: yes
