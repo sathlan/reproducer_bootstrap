@@ -48,7 +48,6 @@ class Review(object):
         """Get the next raw <a> element relative to a element from regexp"""
 
         url = requests.get(base_url.replace('/t/','/api/tenant/')).json()['log_url']
-        print(url)
         return url
 
     def final_yaml_def(self, url):
@@ -70,7 +69,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-r", "--review", type=str, required=True)
-    parser.add_argument("-t", "--template", type=str, default='job-template.yaml')
+    parser.add_argument("-t", "--template", type=str, default='job_template.yaml')
     parser.add_argument("-j", "--job", type=str, required=True)
     options = parser.parse_args()
 
@@ -79,8 +78,6 @@ def main():
     log_url = review.find_log_url(zuul_url)
     yaml = review.final_yaml_def(f"{log_url}logs/reproducer-quickstart/launcher-playbook.yaml")
 
-    print(f"reproducer YAML for review https://review.opendev.org/{options.review}")
-    print("=========================")
     print(yaml)
 
 
