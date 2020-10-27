@@ -1,0 +1,24 @@
+---
+- name: Set up reproducer
+  hosts: localhost
+  tasks:
+    - name: setup the environment with all the tools.
+      include_role:
+        name: "/home/centos/ansible-role-tripleo-ci-reproducer"
+      vars:
+        upstream_gerrit_user: "chem"
+        rdo_gerrit_user: "sathlang"
+        os_cloud_name: "openstack"
+        nodepool_provider: openstack
+        os_centos7_image: "upstream-cloudinit-centos-7"
+        os_centos8_image: "upstream-cloudinit-centos-8"
+        os_rhel8_image: "upstream-cloudinit-rhel-8"
+        user_pri_key: reproducer
+        user_pub_key: reproducer.pub
+        os_cloud_networks:
+          openstack:
+            - reproducer-net
+        container_mode: podman
+        os_autohold_node: true
+        force_post_failure: true
+        mirror_path: mirror.regionone.rdo-cloud.rdoproject.org
