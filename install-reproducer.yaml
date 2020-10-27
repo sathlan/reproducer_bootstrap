@@ -66,12 +66,12 @@
         openstack:
           auth:
             auth_url: 'https://rhos-d.infra.prod.upshift.rdu2.redhat.com:13000/v3'
-            username: "sathlang"
-            user_domain_name: "redhat.com"
-            application_credential_name: 'reproducer'
+            username: "{{ cloud_user_name }}"
+            user_domain_name: "{{ cloud_user_domain }}"
+            application_credential_name: "{{ env_name }}"
             application_credential_secret: "{{ secret }}"
           auth_type: 'v3applicationcredential'
-          region_name: "regionOne"
+          region_name: "{{ cloud_user_region }}"
           interface: "public"
           identity_api_version: 3
 
@@ -119,16 +119,17 @@
             vars:
               upstream_gerrit_user: "{{ upstream_gerrit_user }}"
               rdo_gerrit_user: "{{ rdo_gerrit_user }}"
-              os_cloud_name: "{{ cloud }}"
+              os_cloud_name: "{{ cloud_name }}"
               nodepool_provider: openstack
               os_centos7_image: "upstream-cloudinit-centos-7"
               os_centos8_image: "upstream-cloudinit-centos-8"
               os_rhel8_image: "upstream-cloudinit-rhel-8"
+              os_flavor_name: "quicklab.ocp.master.4vcpu.disk"
               user_pri_key: reproducer
               user_pub_key: reproducer.pub
               os_cloud_networks:
                 openstack:
-                  - reproducer-net
+                  - "{{ env_name }}-net"
               container_mode: podman
               os_autohold_node: true
     job_example:
@@ -141,16 +142,17 @@
             vars:
               upstream_gerrit_user: "{{ upstream_gerrit_user }}"
               rdo_gerrit_user: "{{ rdo_gerrit_user }}"
-              os_cloud_name: "{{ cloud }}"
+              os_cloud_name: "{{ cloud_name }}"
               nodepool_provider: openstack
               os_centos7_image: "upstream-cloudinit-centos-7"
               os_centos8_image: "upstream-cloudinit-centos-8"
               os_rhel8_image: "upstream-cloudinit-rhel-8"
               user_pri_key: reproducer
               user_pub_key: reproducer.pub
+              os_flavor_name: "quicklab.ocp.master.4vcpu.disk"
               os_cloud_networks:
                 openstack:
-                  - reproducer-net
+                  - "{{ env_name }}-net"
               container_mode: podman
               os_autohold_node: true
               force_post_failure: true
@@ -162,7 +164,6 @@
                     check:
                       jobs:
                         - tripleo-ci-centos-8-standalone-upgrade-dlrn-hash-tag
-
                 - job:
                     name: tripleo-ci-centos-8-standalone-upgrade-dlrn-hash-tag
                     parent: tripleo-ci-centos-8-standalone-upgrade

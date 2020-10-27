@@ -1,14 +1,13 @@
 ---
 # Deploy an instance on psi that runs a reproducer stack.
 #
-# More there https://github.com/rdo-infra/ansible-role-tripleo-ci-reproducer/blob/master/README.md#requirements
+# More there
+# https://github.com/rdo-infra/ansible-role-tripleo-ci-reproducer/blob/master/README.md#requirements
 - name: launch a reproducer runner instance
   hosts: localhost
   gather_facts: false
   vars:
-    cloud: "{{ cloudname|default('openstack') }}"
-    secret: U7f8InKPOnztRSuIB8FH
-    project_id: "3266192cfb2846e9bcb16ceab82bbe85"
+    env_name: "{{ prefix }}"
   tasks:
     - import_tasks: create-network.yaml
       tags:
@@ -17,32 +16,26 @@
     - name: create the key
       os_keypair:
         state: present
-        cloud: "{{ cloud }}"
-        name: chem-reproducer
-        public_key_file: ./reproducer.pub
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}"
+        public_key_file: "{{ public_key_file }}"
 
     - name: launch an instance
       os_server:
         state: present
-        cloud: "{{ cloud }}"
-        name: "{{ reproducer_instance_name|default('chem-reproducer') }}"
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}"
         image: "CentOS-8-x86_64-GenericCloud-released-latest"
         availability_zone: nova
         # if ephemeral needs >=8gb
-        flavor: "quicklab.ocp.master.4vcpu.disk"
-        network: "reproducer-net"
-        floating_ip_pools: provider_net_shared_3
+        flavor: "m1.large"
+        network: "{{ env_name }}-net"
+        floating_ip_pools: "{{ public_network_name }}"
         delete_fip: yes
-        key_name: chem-reproducer
+        key_name: "{{ env_name }}"
         security_groups:
-          - reproducer-security-group
+          - "{{ env_name }}-security-group"
       register: instance
-      tags:
-        - always
-
-    - name: print instance details to console
-      debug:
-        msg: "Instance created, log in using 'ssh -i ./reproducer -oUserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no centos@{{ instance.server.public_v4 }}'"
       tags:
         - always
 
@@ -56,7 +49,7 @@
     - name: add instance public ip to host group in memory
       add_host:
         hostname: "{{ instance.server.public_v4 }}"
-        ansible_ssh_private_key_file: ./reproducer
+        ansible_ssh_private_key_file: "{{ public_key_file|replace('.pub','') }}"
         ansible_ssh_common_args: '-oUserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
         ansible_ssh_user: centos
         groups: cloud_vm
@@ -65,10 +58,10 @@
 
     - name: create application credential
       os_application_credentials:
-        cloud: "{{ cloud }}"
-        name: reproducer
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}"
         secret: "{{ secret }}"
-        project_id: "{{ project_id }}"
+        project_id: "{{ cloud_project_id }}"
 
 - name: Setup the new host
   hosts: cloud_vm
@@ -76,10 +69,9 @@
   tags:
     - provision
   vars:
-    secret: U7f8InKPOnztRSuIB8FH
     upstream_gerrit_user: "{{ gerrit_user }}"
     rdo_gerrit_user: "{{ rdo_user }}"
-    cloud: "{{ cloudname|default('openstack') }}"
+    env_name: "{{ prefix }}"
   tasks:
     - name: wait for instance to become reachable
       wait_for_connection:
@@ -118,5 +110,17 @@
     - name: print services details to console
       debug:
         msg: "Services created, ZUUL: http://{{ server.public_v4 }}:9000 GERRIT: http://{{ server.public_v4 }}:8080"
+      tags:
+        - always
+
+    - name: print instance details to console
+      debug:
+        msg: "Instance created, log in using 'ssh -i {{ public_key_file|replace('.pub', '') }} -oUserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no centos@{{ server.public_v4 }}'"
+      tags:
+        - always
+
+    - name: print services details to console
+      debug:
+        msg: "You may add the relevant entries to your /etc/hosts and ~/.ssh/config to ease access."
       tags:
         - always

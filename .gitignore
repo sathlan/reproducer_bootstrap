@@ -1,8 +1,11 @@
 # You must generate your own key and keep that private.
 # They are used to connect to the instance which should be
 # private.  There are some important ssh keys in there.
-reproducer
-reproducer.pub
+reproducer*
+reproducer*.pub
 
 # venv
 reproducer_bootstrap/
+
+# private test
+get_it.sh

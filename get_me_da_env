@@ -1,29 +1,219 @@
 #!/usr/bin/env bash
 
-while getopts :u:r:p:c: OPT; do
+usage()
+{
+    cat <<EOF
+Usage: ${0##*/} -p <PREFIX> -u <UPSTREAM_GERRIT_NAME> -r <RDO_GERRIT_NAME> \\
+                -a <APPLICATION_PASSWORD> \\
+                -k <PRIVATE_KEY_PATH> -b <PUBLIC_KEY_PATH> \\
+                -m <BASTION_PUBLIC_KEY_PATH> \\
+                -n <CLOUD_USER_NAME> \\
+                -i <CLOUD_USER_PROJECT_ID> \\
+                [-t <CLOUD_USER_DOMAIN>] \\
+                [-s <CLOUD_USER_REGION>] \\
+                [-c <CLOUD_NAME>] \\
+                [-d] [-h]
+
+Description: Bootstrap a bastion host with all needed requirements to
+have the reproducer setup works properly.
+
+It will create a bastion hosts that will be properly configured to
+received a podman based deployment of the quickstart reproducer setup
+on CentOS 8.
+
+Then you will be able to log in and run the job testing part of the
+quickstart reproducer.
+
+Parameters:
+  Mandatory
+   -p: prefix to use for cloud related ressource, default to ${USER}-reproducer
+   -u: upstream gerrit user name.
+   -r: rdo gerrit user name.
+   -a: password for application credential to create.
+   -c: the name of cloud entry definition in clouds.yaml, default to openstack.
+   -k: path to private key path to access rdo and gerrit.
+   -b: path to public key path to access rdo and gerrit.
+   -m: path to public key to access your bastion host.
+   -e: external public network name in you cloud (where fip goes), default provider_net_shared_3.
+   -n: user name in your private cloud.
+   -i: project id of your user in your private cloud.
+   -t: domain name of your user in your private cloud, default to redhat.com.
+   -s: region name of your user in your private cloud, default to regionOne.
+   -d: debug
+   -h: this help.
+
+The -p option will assign that exact name to the bastion host, the key
+pair and prefix related ressources (security-group, network, ...) with
+it.
+
+The -a option set the password for the application credential. Note
+that if you want to change the password you need to delete the
+previous application credential.
+
+  ansible-playbook -e '{"cloud": "<CLOUD_NAME>", "env_name": "<PREFIX>"}' delete_app_cred.yaml
+
+then you can recreate it using
+
+  ansible-playbook --skip-tags network,provision  -e '.....' main.yaml
+
+here -e will hold all the option you have setup during deployment.
+
+The -k,b option refer to a key which is assumed to have access both to
+rdo and gerrit.
+
+The -m option refers to the key that will access your instance in your
+cloud.  You are expected to have the private part on your host and use
+it when connecting to the bastion host.  I will work for all created
+instances.
+
+Example:
+
+Create a venv (optional)
+
+  python -mvenv venv
+
+Install the dep
+
+  pip install -r requirements.txt
+
+Load the venv (optional)
+
+  . ./venv/bin/activate
+
+Get your domain id, this step assume a properly configured
+~/.config/openstack/clouds.yaml
+
+  # openstack --os-cloud openstack user show <CLOUD_USER_NAME> -f value -c domain_id
+  62cf1b5ec006489db99e2b0ebfb55f57
+
+Create a key for accessing the vm:
+
+  ssh-keygen -f reproducer -C reproducer@cloud
+
+Your rdo/gerrit private key cannot be encrypted, so decrypt it if
+needed:
+
+  openssl rsa -in ~/.ssh/encrypte_key -out ~/.ssh/decrypted_key
+
+All setup, you can run the command:
+
+  get_me_da_env \
+      -u gerrit_name -r rdo_name \
+      -a verySecureAppPass \
+      -k ~/.ssh/gerrit_rdo_key \
+      -b ~/.ssh/gerrit_rdo_key.pub \
+      -m ./reproducer.pub \
+      -n meInTheCloud \
+      -i \$(openstack --os-cloud openstack user show meInTheCloud -f value -c domain_id)
+
+Wait ...
+
+As the command is rather long It is advised to save. In that repo, you
+can save it to get_it.sh and it will be git ignored.
+
+EOF
+}
+
+error_arg()
+{
+    local arg=$1
+    echo "ERROR: Missing or invalid argument $arg"
+    echo
+    echo "Use ${0##*/} -h for a description of the valid args"
+    exit 2
+}
+
+ENV_NAME="${USER}-reproducer"
+CLOUD_NAME="openstack"
+CLOUD_USER_REGION="regionOne"
+CLOUD_USER_DOMAIN="redhat.com"
+CLOUD_USER_NAME=""
+EXTERNAL_PUB_NET="provider_net_shared_3"
+BASTION_PUBLIC_KEY_PATH=""
+PUBLIC_KEY_PATH=""
+PRIVATE_KEY_PATH=""
+APPLICATION_PASSWORD=""
+RDO_GERRIT_NAME=""
+UPSTREAM_GERRIT_NAME=""
+DEBUG=""
+
+while getopts :u:r:a:c:e:k:b:m:n:i:t:s:p:d OPT; do
     case $OPT in
-        u|+u)
+        p)
+            PREFIX="$OPTARG"
+            ;;
+        u)
             UPSTREAM_GERRIT_NAME="$OPTARG"
             ;;
-        r|+r)
+        r)
             RDO_GERRIT_NAME="$OPTARG"
             ;;
-        p|+p)
+        a)
             APPLICATION_PASSWORD="$OPTARG"
             ;;
-        c|+c)
-            CLOUD="$OPTARG"
+        k)
+            PRIVATE_KEY_PATH="$OPTARG"
+            ;;
+        b)
+            PUBLIC_KEY_PATH="$OPTARG"
+            ;;
+        m)
+            BASTION_PUBLIC_KEY_PATH="$OPTARG"
+            ;;
+        c)
+            CLOUD_NAME="$OPTARG"
+            ;;
+        e)
+            EXTERNAL_PUB_NET="$OPTARG"
+            ;;
+        n)
+            CLOUD_USER_NAME="$OPTARG"
+            ;;
+        t)
+            CLOUD_USER_DOMAIN="$OPTARG"
+            ;;
+        s)
+            CLOUD_USER_REGION="$OPTARG"
+            ;;
+        i)
+            CLOUD_PROJECT_ID="$OPTARG"
+            ;;
+        d)
+            DEBUG="echo"
+            ;;
+        h)
+            usage
+            exit 0
             ;;
         *)
-            echo "usage: ${0##*/} [+-u ARG] [+-r ARG] [+-p ARG] [+-c ARG} [--] ARGS..."
+            error_arg "$OPTARG"
+            usage
             exit 2
     esac
 done
 shift $(( OPTIND - 1 ))
 OPTIND=1
 
-ansible-playbook \
-    -v \
-    --skip-tags network \
-    -e '{"rdo_user": "sathlan", "gerrit_user": "chem", "user_public_key_path": "/home/chem/.ssh/xpsl2.pub", "user_private_key_path": "/home/chem/.ssh/xpsl2d"}' \
-    ./main.yaml
+for opt in CLOUD_PROJECT_ID CLOUD_USER_NAME BASTION_PUBLIC_KEY_PATH PUBLIC_KEY_PATH PRIVATE_KEY_PATH APPLICATION_PASSWORD RDO_GERRIT_NAME UPSTREAM_GERRIT_NAME; do
+    if eval test -z "\$$opt"; then
+        error_arg $opt
+    fi
+done
+
+$DEBUG ansible-playbook \
+       -v \
+       -e '{"prefix": "'${PREFIX}\
+'", "rdo_user": "'${RDO_GERRIT_NAME}\
+'", "gerrit_user": "'${UPSTREAM_GERRIT_NAME}\
+'", "secret": "'${APPLICATION_PASSWORD}\
+'", "user_public_key_path": "'${PUBLIC_KEY_PATH}\
+'", "user_private_key_path": "'${PRIVATE_KEY_PATH}\
+'", "public_key_file": "'${BASTION_PUBLIC_KEY_PATH}\
+'", "cloud_name": "'${CLOUD_NAME}\
+'", "cloud_user_name": "'${CLOUD_USER_NAME}\
+'", "cloud_user_domain": "'${CLOUD_USER_DOMAIN}\
+'", "cloud_user_region": "'${CLOUD_USER_REGION}\
+'", "cloud_project_id": "'${CLOUD_PROJECT_ID}\
+'", "public_network_name": "'${EXTERNAL_PUB_NET}\
+'"}' \
+./main.yaml

@@ -1,237 +1,202 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
-# Copyright 2020 Red Hat, Inc.
-# All Rights Reserved.
-#
-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
-#    not use this file except in compliance with the License. You may obtain
-#    a copy of the License at
-#
-#         http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-#    License for the specific language governing permissions and limitations
-#    under the License.
-__metaclass__ = type
+# coding: utf-8 -*-
 
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.openstack import (
-    openstack_cloud_from_module,
-    openstack_full_argument_spec,
-    openstack_module_kwargs
-)
+# Copyright (c) 2020, Sofer Athlan-Guyot <sathlang@redhat.com>
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
+
+from ansible_collections.openstack.cloud.plugins.module_utils.openstack import OpenStackModule
 
 import yaml
 
 
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'community'
-}
-
-DOCUMENTATION = """
+DOCUMENTATION = '''
 ---
 module: os_application_credentials
-author:
-  - Sofer Athlan-Guyot <sathlang@redhat.com>
-version_added: '2.8'
-short_description: create application credential.
-notes: []
+short_description: Manage application credentials in openstack.
+author: OpenStack Ansible SIG
 description:
-  - create application credential
+  - Manage application credentials in openstack.
 options:
-  debug:
-    description:
-      - Whether or not debug is enabled.
-    default: False
-    required: False
-    type: bool
   name:
     description:
-      - name of the application.
-    required: True
+    - name of the application credential.
+    required: true
     type: str
   description:
     description:
-      - description of application credential's purpose.
+    - description of application credential's purpose.
     default: None
-    required: False
+    required: false
     type: str
   secret:
     description:
-      - secret that application credential will be created with, if any.
-        we cannot check if it has changed.  You need to destroy/create
-        if you want to change it.
+    - secret that application credential will be created with, if
+      any. we cannot check if it has changed.  You need to
+      destroy/create if you want to change it.
     default: None
-    required: False
+    required: false
     type: str
   state:
     description:
-      - which state: present, absent
+    - which state: present, absent
     default: present
-    required: False
+    required: false
     type: str
   project_id:
     description:
-      - ID of the project
-    required: True
+    - ID of the project
+    required: false
+    default: None
     type: str
-"""
 
-EXAMPLES = """
-- name: Special treatment for ovs upgrade.
-  os_application_credentials:
-    name: monitoring
-"""
+requirements:
+  - "python >= 3.6"
+  - "openstacksdk"
 
-RETURN = """
+extends_documentation_fragment:
+  - openstack.cloud.openstack
+'''
+
+RETURN = '''
 json:
-    description: json returned by the api
-    returned: always
-    type: json
+  description: json returned by the api
+  returned: always
+  type: json
 changed:
-    description: Was the ovs package update or not.
-    returned: always
-    type: bool
-"""
+  description: Was the ovs package update or not.
+  returned: always
+  type: bool
+
+'''
+
+EXAMPLES = '''
+# What modules does for example
+- os_application_credentials:
+    action: pause
+    auth:
+      auth_url: https://identity.example.com
+      username: admin
+      password: admin
+      project_name: admin
+    server: vm1
+    timeout: 200
+'''
 
 
-def _exit(module, cloud, app_creds, diff, changed=True):
-    redact_keys = ['secret']
-    for k in redact_keys:
-        if k in diff['before']:
-            diff['before'][k] = '***'
-        if k in diff['after']:
-            diff['after'][k] = '***'
+class OsApplicationCredentialsModule(OpenStackModule):
 
-    module.exit_json(
-        changed=changed,
-        diff=diff,
-        app_creds=app_creds,
-        id=app_creds.get('id', None))
-
-
-def _is_update_needed(module, app_creds):
-    need_change = False
-    options = yaml.safe_load(DOCUMENTATION)['options']
-    # We don't have access to the secret from the api.
-    for check in [x for x in options.keys()
-                  if x not in ['debug', 'state', 'secret']]:
-        if app_creds.get(check) != module.params[check]:
-            need_change = True
-            break
-    return need_change
-
-
-def _get_app_creds_vars(app_creds):
-    return {
-        'id': app_creds.id,
-        'name': app_creds.name,
-        'secret': app_creds.secret,
-        'description': app_creds.description
-    }
-
-
-def _present_application_credentials(module, cloud):
-    changed = False
-    diff = {'before': '', 'after': ''}
-    app_creds = cloud.identity.find_application_credential(
-        cloud.current_user_id,
-        module.params['name']
+    argument_spec = yaml.safe_load(DOCUMENTATION)['options']
+    module_kwargs = dict(
+        required_if=[
+            ["state", "present", ["name", "project_id"]],
+            ["state", "absent", ["name"]],
+        ],
+        supports_check_mode=True,
     )
 
-    if not app_creds:
-        app_creds = cloud.identity.create_application_credential(
-            cloud.current_user_id,
-            module.params['name'],
-            secret=module.params['secret'],
-            description=module.params['description'],
-            project_id=module.params['project_id']
+    # you main funciton is here
+    def run(self):
+        """Create, delete or update the application credentials. """
+        self.diff = {}
+
+        self.app_creds = self.conn.identity.find_application_credential(
+            self.conn.current_user_id,
+            self.params['name']
         )
-        diff['after'] = _get_app_creds_vars(app_creds)
+        # check if we need to run or the resource is in desired state already
+        must_run = self.check_mode_test()
+        if not must_run:
+            return {'diff': self.diff,
+                    'changed': False}
 
-    if app_creds:
-        diff['before'] = _get_app_creds_vars(app_creds)
-        if _is_update_needed(module, app_creds):
-            if module.check_mode:
-                diff['after'] = {
-                    'id': cloud.current_user_id,
-                    'name': module.params['name'],
-                    'secret': module.params['secret'],
-                    'description': module.params['description'],
-                }
+        return self.execute()
+
+    def check_mode_test(self):
+        # check the idempotency - does module should do anything or
+        # it's already in the desired state?
+        must_run = False
+
+        if not self.app_creds:
+            # No application credential found.
+            self.diff['before'] = {}
+            if self.params['state'] == 'absent':
+                self.diff['after'] = {}
             else:
-                cloud.identity.delete_application_credential(
-                    cloud.current_user_id,
-                    app_creds
-                )
-                app_creds = cloud.identity.create_application_credential(
-                    cloud.current_user_id,
-                    module.params['name'],
-                    secret=module.params['secret'],
-                    description=module.params['description'],
-                    project_id=module.params['project_id']
-                )
-                diff['after'] = _get_app_creds_vars(app_creds)
+                must_run = True
+        else:
+            # Application credential found.
+            self.diff['before'] = self._get_app_creds_vars(self.app_creds)
+            if self._need_update():
+                must_run = True
+            else:
+                self.diff['after'] = self._get_app_creds_vars(self.app_creds)
 
-            changed = True
+        # Take check_mode into account.
+        if must_run and self.ansible.check_mode:
+            self.diff['after'] = self._get_app_creds_vars(self.params)
+            must_run = False
 
-    _exit(module, cloud, app_creds, diff, changed)
+        return must_run
 
+    def execute(self):
+        actions_map = {
+            'present': self._present_resource,
+            'absent': self._absent_resource,
+        }
+        actions_map[self.params['state']]()
+        self.diff['after'] = self._get_app_creds_vars(self.app_creds)
+        return {'changed': True,
+                'diff': self.diff,
+                'app_creds': self.app_creds,
+                'id': self.app_creds['id']}
 
-def _delete_application_credentials(module, cloud):
-    if module.check_mode:
-        return True
-    cloud.identity.delete_application_credential(
-        cloud.current_user_id,
-        module.params['name']
-    )
-    return True
+    def _present_resource(self):
+        params = [self.conn.current_user_id, self.params['name']]
+        kwargs = {
+            'secret': self.params['secret'],
+            'description': self.params['description'],
+            'project_id': self.params['project_id']
+        }
+        if self.app_creds:
+            # Update, done by delete/create
+            self._absent_resource()
 
+        self.app_creds = self.conn.identity.create_application_credential(
+            *params, **kwargs,
+        )
 
-def _absent_application_credentials(module, cloud):
-    changed = False
-    diff = {'before': '', 'after': ''}
-    app_creds = cloud.identity.find_application_credential(
-        cloud.current_user_id,
-        module.params['name']
-    )
+    def _absent_resource(self):
+        # We reach here only if the resource already exist.
+        self.conn.identity.delete_application_credential(
+            self.conn.current_user_id,
+            self.app_creds['id']
+        )
 
-    if app_creds:
-        changed = _delete_application_credentials(module, cloud)
+    def _need_update(self):
+        need_update = False
+        options = yaml.safe_load(DOCUMENTATION)['options']
+        for check in [x for x in options.keys()
+                      if x not in ['state', 'secret']]:
+            if self.app_creds.get(check) != self.params[check]:
+                need_update = True
+                break
+        return need_update
 
-    module.exit_json(changed=changed, diff=diff, result='not present')
+    @staticmethod
+    def _get_app_creds_vars(app_creds):
+        info = {}
+        for col in ['description', 'id', 'name', 'project_id']:
+            if col in app_creds:
+                info.update({col: app_creds.get(col)})
+        if 'secret' in app_creds:
+            info.update({'secret': '***'})
+        return info
 
 
 def main():
-    module = AnsibleModule(
-        openstack_full_argument_spec(
-            **yaml.safe_load(DOCUMENTATION)['options']
-        ),
-        **openstack_module_kwargs()
-    )
-    state = module.params['state']
-
-    result = dict(
-        changed=False,
-        success=False,
-        json={},
-    )
-    sdk, cloud = openstack_cloud_from_module(module)
-
-    try:
-        if state == 'present':
-            _present_application_credentials(module, cloud)
-        if state == 'absent':
-            _absent_application_credentials(module, cloud)
-    except sdk.exceptions.OpenStackCloudException as e:
-        module.fail_json(msg=str(e), extra_data=e.extra_data)
-    else:
-        result['success'] = True
-        module.exit_json(**result)
+    module = OsApplicationCredentialsModule()
+    module()
 
 
 if __name__ == '__main__':

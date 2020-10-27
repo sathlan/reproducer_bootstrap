@@ -1,18 +1,18 @@
 ---
 - name: create the reproducer network
   os_network:
-    cloud: "{{ cloud|default('openstack') }}"
+    cloud: "{{ cloud_name }}"
     state: present
-    name: reproducer-net
+    name: "{{ env_name }}-net"
     external: false
     shared: no
     wait: yes
 
 - name: create the reproducer subnet
   os_subnet:
-    cloud: "{{ cloud|default('openstack') }}"
-    name: reproducer-subnet
-    network_name: reproducer-net
+    cloud: "{{ cloud_name }}"
+    name: "{{ env_name }}-subnet"
+    network_name: "{{ env_name }}-net"
     enable_dhcp: yes
     cidr: 192.168.0.0/24
     dns_nameservers:
@@ -25,31 +25,31 @@
 
 - name: create a router
   os_router:
-    cloud: "{{ cloud|default('openstack') }}"
+    cloud: "{{ cloud_name }}"
     state: present
-    name: reproducer-router
-    network: provider_net_shared_3
+    name: "{{ env_name }}-router"
+    network: "{{ public_network_name }}"
     interfaces:
-      - reproducer-subnet
+      - "{{ env_name }}-subnet"
 
 - name: create security group
   os_security_group:
-    cloud: "{{ cloud|default('openstack') }}"
+    cloud: "{{ cloud_name }}"
     state: present
-    name: reproducer-security-group
+    name: "{{ env_name }}-security-group"
     description: Security group for our test instances
 
 - name: create security group rule for ping
   os_security_group_rule:
-    cloud: "{{ cloud|default('openstack') }}"
-    security_group: reproducer-security-group
+    cloud: "{{ cloud_name }}"
+    security_group: "{{ env_name }}-security-group"
     protocol: icmp
     remote_ip_prefix: 0.0.0.0/0
 
 - name: create security group rule for SSH
   os_security_group_rule:
-    cloud: "{{ cloud|default('openstack') }}"
-    security_group: reproducer-security-group
+    cloud: "{{ cloud_name }}"
+    security_group: "{{ env_name }}-security-group"
     protocol: tcp
     port_range_min: 22
     port_range_max: 22
@@ -57,8 +57,8 @@
 
 - name: create security group rule for Gerrit
   os_security_group_rule:
-    cloud: "{{ cloud|default('openstack') }}"
-    security_group: reproducer-security-group
+    cloud: "{{ cloud_name }}"
+    security_group: "{{ env_name }}-security-group"
     protocol: tcp
     port_range_min: 8080
     port_range_max: 8080
@@ -66,8 +66,8 @@
 
 - name: create security group rule for Zuul
   os_security_group_rule:
-    cloud: "{{ cloud|default('openstack') }}"
-    security_group: reproducer-security-group
+    cloud: "{{ cloud_name }}"
+    security_group: "{{ env_name }}-security-group"
     protocol: tcp
     port_range_min: 9000
     port_range_max: 9000
@@ -75,8 +75,8 @@
 
 - name: create security group rule for Logs
   os_security_group_rule:
-    cloud: "{{ cloud|default('openstack') }}"
-    security_group: reproducer-security-group
+    cloud: "{{ cloud_name }}"
+    security_group: "{{ env_name }}-security-group"
     protocol: tcp
     port_range_min: 8000
     port_range_max: 8000
@@ -84,8 +84,8 @@
 
 - name: create security group rule for git/review access.
   os_security_group_rule:
-    cloud: "{{ cloud|default('openstack') }}"
-    security_group: reproducer-security-group
+    cloud: "{{ cloud_name }}"
+    security_group: "{{ env_name }}-security-group"
     protocol: tcp
     port_range_min: 29418
     port_range_max: 29418
