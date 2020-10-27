@@ -9,3 +9,6 @@ reproducer_bootstrap/
 
 # private test
 get_it.sh
+
+# some other stuff
+job_template.yaml
