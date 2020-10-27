@@ -74,6 +74,10 @@
           region_name: "{{ cloud_user_region }}"
           interface: "public"
           identity_api_version: 3
+          networks:
+            - name: "{{ public_network_name }}"
+              nat_source: true
+              routes_externally: true
 
 - name: copy user private key associated with zuul (gerrit)
   copy:
