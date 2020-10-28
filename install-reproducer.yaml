@@ -11,6 +11,10 @@
       - python3-pip
       - podman
       - python3-libselinux
+      - emacs-nox
+      - vim
+      - patch
+      - bc
     state: latest
 
 - name: install some pip
