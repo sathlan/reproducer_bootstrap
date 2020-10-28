@@ -150,6 +150,7 @@
               os_flavor_name: "quicklab.ocp.master.4vcpu.disk"
               user_pri_key: reproducer
               user_pub_key: reproducer.pub
+              zuul_job_retries: 120
               os_cloud_networks:
                 openstack:
                   - "{{ env_name }}-net"
@@ -179,6 +180,7 @@
               container_mode: podman
               os_autohold_node: true
               force_post_failure: true
+              zuul_job_retries: 120
               mirror_path: mirror.regionone.rdo-cloud.rdoproject.org
               depends_on:
                 - https://review.opendev.org/755336
