@@ -11,6 +11,7 @@
       - python3-pip
       - podman
       - python3-libselinux
+      - patch
     state: latest
 
 - name: install some pip
@@ -46,6 +47,15 @@
     repo: 'https://github.com/rdo-infra/ansible-role-tripleo-ci-reproducer.git'
     dest: /home/centos/ansible-role-tripleo-ci-reproducer
     update: "{{ update_repo|default('no') }}"
+  become: yes
+  become_user: centos
+
+- name: patch it
+  patch:
+    src: ansible-role-tripleo-ci-reproducer.patch
+    dest: /home/centos/ansible-role-tripleo-ci-reproducer/tasks/launch-job.yaml
+  become: yes
+  become_user: centos
 
 - name: create the cloud configuration directory.
   file:
