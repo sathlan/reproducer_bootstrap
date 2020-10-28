@@ -89,7 +89,7 @@
 
     - name: Run bootstrap
       shell:
-        cmd: "ansible-playbook -v boostrap_reproducer.yaml > /home/centos/bootstrap_reproducer.log"
+        cmd: "ansible-playbook -v boostrap_reproducer.yaml --skip-tags launch > /home/centos/bootstrap_reproducer.log"
         creates: /home/centos/bootstrap_reproducer.log
 
     - name: Example job script
