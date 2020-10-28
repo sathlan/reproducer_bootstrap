@@ -119,8 +119,8 @@
             include_role:
               name: "/home/centos/ansible-role-tripleo-ci-reproducer"
             vars:
-              upstream_gerrit_user: "{{ upstream_gerrit_user }}"
-              rdo_gerrit_user: "{{ rdo_gerrit_user }}"
+              upstream_gerrit_user: "{{ gerrit_user }}"
+              rdo_gerrit_user: "{{ rdo_user }}"
               os_cloud_name: "{{ cloud_name }}"
               nodepool_provider: openstack
               os_centos7_image: "upstream-cloudinit-centos-7"
@@ -142,8 +142,8 @@
             include_role:
               name: "/home/centos/ansible-role-tripleo-ci-reproducer"
             vars:
-              upstream_gerrit_user: "{{ upstream_gerrit_user }}"
-              rdo_gerrit_user: "{{ rdo_gerrit_user }}"
+              upstream_gerrit_user: "{{ gerrit_user }}"
+              rdo_gerrit_user: "{{ rdo_user }}"
               os_cloud_name: "{{ cloud_name }}"
               nodepool_provider: openstack
               os_centos7_image: "upstream-cloudinit-centos-7"

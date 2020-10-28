@@ -69,8 +69,6 @@
   tags:
     - provision
   vars:
-    upstream_gerrit_user: "{{ gerrit_user }}"
-    rdo_gerrit_user: "{{ rdo_user }}"
     env_name: "{{ prefix }}"
   tasks:
     - name: wait for instance to become reachable
