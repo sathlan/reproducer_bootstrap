@@ -2,37 +2,86 @@
 - name: Destroy everything related to the reproducer runner instance
   hosts: localhost
   gather_facts: false
+  vars:
+    env_name: "{{ prefix }}"
   tasks:
+    - name: Which server would I delete
+      debug:
+        msg:  "Would destroy {{ env_name }} instance"
+
     - name: destroy the instance
       os_server:
         state: absent
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}"
+      when: not noop|default(false)|bool
+
+    - name: list associated servers
+      os_server_info:
         cloud: openstack
-        name: "{{ reproducer_instance_name|default('chem-reproducer') }}"
-        image: "CentOS-8-x86_64-GenericCloud-released-latest"
-        availability_zone: nova
-        flavor: "m1.medium"
-        network: "reproducer-net"
-        floating_ip_pools: provider_net_shared_3
-        delete_fip: yes
-        key_name: reproducer
-        security_groups:
-          - reproducer-security-group
+        server: "*{{ env_name }}-openstack*"
+      register: servers
+
+    - name: destroy them
+      os_server:
+        state: absent
+        cloud: "{{ cloud_name }}"
+        name: "{{ item.name }}"
+      loop: "{{ servers.openstack_servers|default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: not noop|default(false)|bool
+
+    - name: Which associated server would I delete
+      debug:
+        msg:  "Would destroy '{{ item.name }}' instance"
+      loop: "{{ servers.openstack_servers|default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Which key be deleted
+      debug:
+        msg:  "Would destroy {{ env_name }} key"
+
+    - name: delete the key
+      os_keypair:
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}"
+        state: absent
+      when:
+        - delete_key|default("False")|bool
+        - not noop|default(false)|bool
+
+    - name: Which appcred be deleted
+      debug:
+        msg:  "Would destroy {{ env_name }} appcred"
+
+    - name: destroy application credential
+      os_application_credentials:
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}"
+        state: absent
+      when:
+        - delete_appcred|default("False")|bool
+        - not noop|default(false)|bool
+
+    - name: Which router be deleted
+      debug:
+        msg:  "Would destroy {{ env_name }}-router router"
 
     - name: destroy a router
       os_router:
-        cloud: openstack
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}-router"
         state: absent
-        name: reproducer-router
-        network: provider_net_shared_3
-        interfaces:
-          - reproducer-subnet
+      when: not noop|default(false)|bool
 
     - name: destroy the reproducer subnet
       os_subnet:
-        cloud: openstack
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}-subnet"
+        network_name: "{{ env_name }}-net"
         state: absent
-        name: reproducer-subnet
-        network_name: reproducer-net
         enable_dhcp: yes
         cidr: 192.168.0.0/24
         dns_nameservers:
@@ -42,64 +91,86 @@
            - 8.8.8.7
            - 8.8.8.8
         wait: yes
+      when: not noop|default(false)|bool
 
     - name: destroy the reproducer network
       os_network:
-        cloud: openstack
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}-net"
         state: absent
-        name: reproducer-net
         external: false
         shared: no
         wait: yes
+      when: not noop|default(false)|bool
 
     - name: destroy security group rule for ping
       os_security_group_rule:
-        cloud: openstack
+        cloud: "{{ cloud_name }}"
+        security_group: "{{ env_name }}-security-group"
         state: absent
-        security_group: reproducer-security-group
         protocol: icmp
         remote_ip_prefix: 0.0.0.0/0
+      when: not noop|default(false)|bool
 
     - name: destroy security group rule for SSH
       os_security_group_rule:
-        cloud: openstack
+        cloud: "{{ cloud_name }}"
+        security_group: "{{ env_name }}-security-group"
         state: absent
-        security_group: reproducer-security-group
         protocol: tcp
         port_range_min: 22
         port_range_max: 22
         remote_ip_prefix: 0.0.0.0/0
+      when: not noop|default(false)|bool
 
     - name: destroy security group rule for Gerrit
       os_security_group_rule:
-        cloud: "{{ cloud|default('openstack') }}"
+        cloud: "{{ cloud_name }}"
+        security_group: "{{ env_name }}-security-group"
         state: absent
-        security_group: reproducer-security-group
         protocol: tcp
         port_range_min: 8080
         port_range_max: 8080
         remote_ip_prefix: 0.0.0.0/0
+      when: not noop|default(false)|bool
 
-    - name: create security group rule for Zuul
+    - name: destroy security group rule for Zuul
       os_security_group_rule:
-        cloud: "{{ cloud|default('openstack') }}"
+        cloud: "{{ cloud_name }}"
+        security_group: "{{ env_name }}-security-group"
         state: absent
-        security_group: reproducer-security-group
         protocol: tcp
         port_range_min: 9000
         port_range_max: 9000
         remote_ip_prefix: 0.0.0.0/0
+      when: not noop|default(false)|bool
+
+    - name: destroy security group rule for Logs
+      os_security_group_rule:
+        cloud: "{{ cloud_name }}"
+        security_group: "{{ env_name }}-security-group"
+        state: absent
+        protocol: tcp
+        port_range_min: 8000
+        port_range_max: 8000
+        remote_ip_prefix: 0.0.0.0/0
+      when: not noop|default(false)|bool
+
+    - name: destroy security group rule for git/review access.
+      os_security_group_rule:
+        cloud: "{{ cloud_name }}"
+        security_group: "{{ env_name }}-security-group"
+        state: absent
+        protocol: tcp
+        port_range_min: 29418
+        port_range_max: 29418
+        remote_ip_prefix: 0.0.0.0/0
+      when: not noop|default(false)|bool
 
     - name: destroy security group
       os_security_group:
-        cloud: openstack
+        cloud: "{{ cloud_name }}"
+        name: "{{ env_name }}-security-group"
         state: absent
-        name: reproducer-security-group
         description: Security group for reproducer instances
-
-    - name: Destroy the key
-      os_keypair:
-        state: absent
-        cloud: "{{ cloud|default('openstack') }}"
-        name: reproducer
-        public_key_file: ./reproducer.pub
+      when: not noop|default(false)|bool
