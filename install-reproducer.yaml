@@ -116,10 +116,20 @@
         mode: 0600
 
     - name: install a example job for upgrade
-      delegate_to: localhost
       copy:
         content: "{{ job_example|to_nice_yaml }}"
         dest: job_template.yaml
+        group: centos
+        owner: centos
+        mode: 0600
+
+    - name: copy the create_job.py where it will be used.
+      copy:
+        src: create_job.py
+        dest: /home/centos/create_job.py
+        group: centos
+        owner: centos
+        mode: 0700
 
   vars:
     bootstrap_playbook:
