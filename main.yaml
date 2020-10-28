@@ -87,11 +87,6 @@
     - import_tasks: install-reproducer.yaml
       become: true
 
-    - name: Run bootstrap
-      shell:
-        cmd: "ansible-playbook -v boostrap_reproducer.yaml --skip-tags launch > /home/centos/bootstrap_reproducer.log"
-        creates: /home/centos/bootstrap_reproducer.log
-
     - name: Example job script
       copy:
         content: |
@@ -102,6 +97,11 @@
         owner: centos
         group: centos
         mode: 0700
+
+    - name: Run bootstrap
+      shell:
+        cmd: "ansible-playbook -v boostrap_reproducer.yaml --skip-tags launch > /home/centos/bootstrap_reproducer.log"
+        creates: /home/centos/bootstrap_reproducer.log
 
 - name: Give user details about what is available.
   hosts: localhost
