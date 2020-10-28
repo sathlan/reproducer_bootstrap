@@ -97,7 +97,7 @@
         content: |
           #!/bin/bash
 
-          ansible-playbook -v --skip-tags start,install /home/centos/job_example.yaml
+          ansible-playbook -v --tags start /home/centos/job_example.yaml
         dest: /home/centos/job_example.sh
         owner: centos
         group: centos
