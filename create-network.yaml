@@ -2,8 +2,8 @@
 - name: create the reproducer network
   os_network:
     cloud: "{{ cloud_name }}"
-    state: present
     name: "{{ env_name }}-net"
+    state: present
     external: false
     shared: no
     wait: yes
@@ -35,8 +35,8 @@
 - name: create security group
   os_security_group:
     cloud: "{{ cloud_name }}"
-    state: present
     name: "{{ env_name }}-security-group"
+    state: present
     description: Security group for our test instances
 
 - name: create security group rule for ping

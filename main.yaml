@@ -63,6 +63,12 @@
         secret: "{{ secret }}"
         project_id: "{{ cloud_project_id }}"
 
+    - name: print instance details to console
+      debug:
+        msg: "Instance created, log in using 'ssh -i {{ public_key_file|replace('.pub', '') }} -oUserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no centos@{{ instance.server.public_v4 }}'"
+      tags:
+        - always
+
 - name: Setup the new host
   hosts: cloud_vm
   gather_facts: false

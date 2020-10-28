@@ -4,8 +4,7 @@
 reproducer*
 reproducer*.pub
 
-# venv
-reproducer_bootstrap/
+venv/
 
 # private test
 get_it.sh

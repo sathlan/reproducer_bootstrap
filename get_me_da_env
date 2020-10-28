@@ -12,6 +12,7 @@ Usage: ${0##*/} -p <PREFIX> -u <UPSTREAM_GERRIT_NAME> -r <RDO_GERRIT_NAME> \\
                 [-t <CLOUD_USER_DOMAIN>] \\
                 [-s <CLOUD_USER_REGION>] \\
                 [-c <CLOUD_NAME>] \\
+                [-e <EXTERNAL_PUB_NET>] \\
                 [-d] [-h]
 
 Description: Bootstrap a bastion host with all needed requirements to
@@ -26,14 +27,15 @@ quickstart reproducer.
 
 Parameters:
   Mandatory
-   -p: prefix to use for cloud related ressource, default to ${USER}-reproducer
    -u: upstream gerrit user name.
    -r: rdo gerrit user name.
    -a: password for application credential to create.
-   -c: the name of cloud entry definition in clouds.yaml, default to openstack.
    -k: path to private key path to access rdo and gerrit.
    -b: path to public key path to access rdo and gerrit.
    -m: path to public key to access your bastion host.
+  Optional:
+   -p: prefix to use for cloud related ressource, default to ${USER}-reproducer
+   -c: the name of cloud entry definition in clouds.yaml, default to openstack.
    -e: external public network name in you cloud (where fip goes), default provider_net_shared_3.
    -n: user name in your private cloud.
    -i: project id of your user in your private cloud.
@@ -123,7 +125,7 @@ error_arg()
     exit 2
 }
 
-ENV_NAME="${USER}-reproducer"
+PREFIX="${USER}-reproducer"
 CLOUD_NAME="openstack"
 CLOUD_USER_REGION="regionOne"
 CLOUD_USER_DOMAIN="redhat.com"
@@ -137,7 +139,7 @@ RDO_GERRIT_NAME=""
 UPSTREAM_GERRIT_NAME=""
 DEBUG=""
 
-while getopts :u:r:a:c:e:k:b:m:n:i:t:s:p:d OPT; do
+while getopts :u:r:a:c:e:k:b:m:n:i:t:s:p:dh OPT; do
     case $OPT in
         p)
             PREFIX="$OPTARG"

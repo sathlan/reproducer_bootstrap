@@ -10,6 +10,7 @@
       - git
       - python3-pip
       - podman
+      - python3-libselinux
     state: latest
 
 - name: install some pip
