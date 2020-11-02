@@ -98,6 +98,33 @@
         group: centos
         mode: 0700
 
+    - name: Script about autohold
+      copy:
+        content: |
+          #!/bin/bash
+
+          sudo podman exec -ti executor /usr/local/bin/zuul autohold-list
+        dest: /home/centos/autohold-list
+        owner: centos
+        group: centos
+        mode: 0700
+
+    - name: Script about autohold
+      copy:
+        content: |
+          #!/bin/bash
+          set -eux
+          # $1: gerrit/test1
+          # $2: tripleo-ci-centos-8-content-provider-dlrn-hash-tag
+          # $3: 'review 1001,1'
+          sudo podman exec -ti executor /usr/local/bin/zuul autohold \
+            --tenant tripleo-ci-reproducer --project $1
+            --job $2  --reason "$3"
+        dest: /home/centos/autohold-create
+        owner: centos
+        group: centos
+        mode: 0700
+
     - name: Run bootstrap
       shell:
         cmd: "ansible-playbook -v boostrap_reproducer.yaml --skip-tags launch > /home/centos/bootstrap_reproducer.log"
