@@ -141,7 +141,7 @@
               os_centos7_image: "upstream-cloudinit-centos-7"
               os_centos8_image: "upstream-cloudinit-centos-8"
               os_rhel8_image: "upstream-cloudinit-rhel-8"
-              os_flavor_name: "quicklab.ocp.master.4vcpu.disk"
+              os_flavor_name: "quicklab.m1.large"
               user_pri_key: reproducer
               user_pub_key: reproducer.pub
               zuul_job_retries: 120

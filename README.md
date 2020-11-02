@@ -76,3 +76,27 @@ job for this review =https://review.opendev.org/757845=
 Now you can point your browser to =<public_ip>:9000= and
 =<public_ip>:8080= to watch the job in your own little zuul/gerrit
 stack.
+
+## FAQ
+### The flavor is not correct
+
+`Nodepool` takes the flavor name as an indication, not a fixed
+parameter. Basically it loads all the flavors and takes the first one
+where the flavor string in submatch. So if you specified `x1.large`
+and the flavor list has `x1.large.ephemeral` then you cannot be
+certain that the `x1.large.ephemeral` won't be choosen.
+
+So if you want to be certain, you need to get a flavor name that is
+not matched by any other flavor string.
+
+### How to change the nodepool flavor.
+
+The nodepool configuration is in
+`tripleo-ci-reproducer/etc_nodepool/nodepool.yaml`
+
+Look for `flavor:`, adjust, and restart the service (not sure it's
+required, but it works)
+
+    sudo podman restart launcher
+
+
