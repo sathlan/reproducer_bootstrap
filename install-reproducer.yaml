@@ -1,4 +1,12 @@
 ---
+- name: Strange CentOS8 death.
+  shell: |
+    sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-*
+    sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*
+
+- name: disable selinux
+  shell: setenforce 0
+
 - name: install epel
   package:
     name: epel-release
@@ -24,12 +32,12 @@
       - python-openstackclient
       - bindep
 
-- name: tune the container images registries
-  ini_file:
-    section: registries.search
-    option: registries
-    value: ['docker.io']
-    path: /etc/containers/registries.conf
+# - name: tune the container images registries
+#   ini_file:
+#     section: registries.search
+#     option: registries
+#     value: ['docker.io']
+#     path: /etc/containers/registries.conf
 
 - name: tune cni podman bridge configuration for small mtu
   block:
@@ -68,9 +76,13 @@
   vars:
     cloud_conf:
       clouds:
-        openstack:
+        openstack_dev:          # TODO: This should be "{{ cloud_name
+                                # }}": maybe I should load directly
+                                # the current definition in
+                                # ~/.config/openstack/clouds.yaml
           auth:
-            auth_url: 'https://rhos-d.infra.prod.upshift.rdu2.redhat.com:13000/v3'
+#            auth_url: 'https://rhos-d.infra.prod.upshift.rdu2.redhat.com:13000/v3'
+            auth_url: "https://api.rhos-01.prod.psi.rdu2.redhat.com:13000"
             username: "{{ cloud_user_name }}"
             user_domain_name: "{{ cloud_user_domain }}"
             application_credential_name: "{{ env_name }}"
@@ -100,11 +112,28 @@
     group: centos
     mode: 0600
 
+    # Having a copy in the default help.    
+- name: copy user private key associated with zuul (gerrit)
+  copy:
+    src: "{{ user_private_key_path }}"
+    dest: /home/centos/.ssh/id_rsa
+    owner: centos
+    group: centos
+    mode: 0600
+
+- name: copy user public key associated with zuul (gerrit)
+  copy:
+    src: "{{ user_public_key_path }}"
+    dest: /home/centos/.ssh/id_rsa.pub
+    owner: centos
+    group: centos
+    mode: 0600
+
 - block:
     - name: install the bootstrap script yaml
       copy:
         content: "{{ bootstrap_playbook|to_nice_yaml }}"
-        dest: /home/centos/boostrap_reproducer.yaml
+        dest: /home/centos/bootstrap_reproducer.yaml
         group: centos
         owner: centos
         mode: 0600
@@ -133,20 +162,28 @@
           - name: setup the environment with all the tools.
             include_role:
               name: "/home/centos/ansible-role-tripleo-ci-reproducer"
+# DOESN'T work with includerole ... nice.              
+#            environment:
+#              https_proxy: "http://127.0.0.1:3128"
+#              http_proxy: "http://127.0.0.1:3128"
             vars:
               upstream_gerrit_user: "{{ gerrit_user }}"
               rdo_gerrit_user: "{{ rdo_user }}"
               os_cloud_name: "{{ cloud_name }}"
               nodepool_provider: openstack
-              os_centos7_image: "upstream-cloudinit-centos-7"
-              os_centos8_image: "upstream-cloudinit-centos-8"
+              os_centos7_image: "chem-upstream-cloudinit-centos-7"
+              os_centos8_image: "chem-upstream-cloudinit-centos-8"
+              os_centos9_image: "chem-centos-9-stream"
               os_rhel8_image: "upstream-cloudinit-rhel-8"
-              os_flavor_name: "quicklab.m1.large"
+              os_rhel9_image: "upstream-cloudinit-rhel-9"
+              os_flavor_name: "{{ nodepool_flavor_name }}"
               user_pri_key: reproducer
               user_pub_key: reproducer.pub
               zuul_job_retries: 120
               os_cloud_networks:
                 openstack:
+                  - "{{ env_name }}-net"
+                openstack_dev:
                   - "{{ env_name }}-net"
               container_mode: podman
               os_autohold_node: true

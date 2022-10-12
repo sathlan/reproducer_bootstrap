@@ -13,6 +13,8 @@ Usage: ${0##*/} -p <PREFIX> -u <UPSTREAM_GERRIT_NAME> -r <RDO_GERRIT_NAME> \\
                 [-s <CLOUD_USER_REGION>] \\
                 [-c <CLOUD_NAME>] \\
                 [-e <EXTERNAL_PUB_NET>] \\
+                [-f <FLAVOR_NAME>] \\
+                [-N <NODEPOOL_FLAVOR_NAME>] \\
                 [-d] [-h]
 
 Description: Bootstrap a bastion host with all needed requirements to
@@ -37,6 +39,8 @@ Parameters:
    -p: prefix to use for cloud related ressource, default to ${USER}-reproducer
    -c: the name of cloud entry definition in clouds.yaml, default to openstack.
    -e: external public network name in you cloud (where fip goes), default provider_net_shared_3.
+   -f: flavor to use. m1.large by default.
+   -N: nodepool flavor to use. quicklab.m1.large by default.
    -n: user name in your private cloud.
    -i: project id of your user in your private cloud.
    -t: domain name of your user in your private cloud, default to redhat.com.
@@ -131,6 +135,8 @@ CLOUD_USER_REGION="regionOne"
 CLOUD_USER_DOMAIN="redhat.com"
 CLOUD_USER_NAME=""
 EXTERNAL_PUB_NET="provider_net_shared_3"
+FLAVOR_NAME="m1.large"
+NODEPOOL_FLAVOR_NAME="quicklab.m1.large"
 BASTION_PUBLIC_KEY_PATH=""
 PUBLIC_KEY_PATH=""
 PRIVATE_KEY_PATH=""
@@ -139,7 +145,7 @@ RDO_GERRIT_NAME=""
 UPSTREAM_GERRIT_NAME=""
 DEBUG=""
 
-while getopts :u:r:a:c:e:k:b:m:n:i:t:s:p:dh OPT; do
+while getopts :u:r:a:c:e:f:N:k:b:m:n:i:t:s:p:dh OPT; do
     case $OPT in
         p)
             PREFIX="$OPTARG"
@@ -167,6 +173,12 @@ while getopts :u:r:a:c:e:k:b:m:n:i:t:s:p:dh OPT; do
             ;;
         e)
             EXTERNAL_PUB_NET="$OPTARG"
+            ;;
+        f)
+            FLAVOR_NAME="$OPTARG"
+            ;;
+        N)
+            NODEPOOL_FLAVOR_NAME="$OPTARG"
             ;;
         n)
             CLOUD_USER_NAME="$OPTARG"
@@ -217,5 +229,7 @@ $DEBUG ansible-playbook \
 '", "cloud_user_region": "'${CLOUD_USER_REGION}\
 '", "cloud_project_id": "'${CLOUD_PROJECT_ID}\
 '", "public_network_name": "'${EXTERNAL_PUB_NET}\
+'", "flavor_name": "'${FLAVOR_NAME}\
+'", "nodepool_flavor_name": "'${NODEPOOL_FLAVOR_NAME}\
 '"}' \
 ./main.yaml

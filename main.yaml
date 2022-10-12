@@ -25,10 +25,10 @@
         state: present
         cloud: "{{ cloud_name }}"
         name: "{{ env_name }}"
-        image: "CentOS-8-x86_64-GenericCloud-released-latest"
+        image: "CentOS-8-GenericCloud-8.4.2105"
         availability_zone: nova
         # if ephemeral needs >=8gb
-        flavor: "m1.large"
+        flavor: "{{ flavor_name}}"
         network: "{{ env_name }}-net"
         floating_ip_pools: "{{ public_network_name }}"
         delete_fip: yes
@@ -42,7 +42,7 @@
     - name: Save instance variable definition
       copy:
         content: "{{ instance | to_nice_json }}"
-        dest: /tmp/reproducer-instance.json
+        dest: ./reproducer-instance.json
       environment:
         PYTHONPATH: "/usr/lib64/python3.8/site-packages/"
 
@@ -136,7 +136,7 @@
   tasks:
 
     - name: load instance variable
-      include_vars: /tmp/reproducer-instance.json
+      include_vars: ./reproducer-instance.json
 
     - name: print services details to console
       debug:
